@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Data Quality Validation Stack
+
+Resources:
+  DataValidationBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: your-bucket
+
+  QualityCheckLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: quality-check-lambda
+      Handler: app.lambda_handler
+      Role: arn:aws:iam::account-id:role/LabRole
+      Runtime: python3.9
+      Code:
+        S3Bucket: your-bucket
+        S3Key: lambda/quality_check.zip
+      Timeout: 60
+
+  AlertLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: log-alert-lambda
+      Handler: app.lambda_handler
+      Role: arn:aws:iam::account-id:role/LabRole
+      Runtime: python3.9
+      Code:
+        S3Bucket: your-bucket
+        S3Key: lambda/log_alert.zip
+      Timeout: 30
+
+  AlertSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: data-quality-alerts
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AlertLambda
+      Principal: sns.amazonaws.com
