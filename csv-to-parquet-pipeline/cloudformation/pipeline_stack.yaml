@@ -1,0 +1,32 @@
+Resources:
+  CSVUploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: csv-uploads-bucket25
+
+  ParquetOutputBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: parquet-data-bucket25
+
+  CSVToParquetLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: trigger_glue_job.lambda_handler
+      Role: arn:aws:iam::123456789012:role/LabRole
+      Runtime: python3.9
+      Code:
+        S3Bucket: lambda-code-bucket
+        S3Key: trigger_glue_job.zip
+      Environment:
+        Variables:
+          GLUE_JOB_NAME: csv-to-parquet-glue-job
+
+  CSVUploadTrigger:
+    Type: AWS::S3::BucketNotification
+    Properties:
+      Bucket: !Ref CSVUploadBucket
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt CSVToParquetLambda.Arn
