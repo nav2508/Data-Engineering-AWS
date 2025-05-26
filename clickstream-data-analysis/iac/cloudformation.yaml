@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Clickstream Analysis Infrastructure
+
+Resources:
+
+  ClickstreamBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: clickstream-data-logs
+
+  ClickstreamStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: clickstream-data
+      ShardCount: 1
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ClickstreamLambdaRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+
+  ClickstreamProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ClickstreamProcessor
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: YOUR_CODE_BUCKET_NAME   # Replace with actual bucket
+        S3Key: lambda/processor.zip
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref ClickstreamBucket
+
+  LambdaEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 100
+      StartingPosition: LATEST
+      EventSourceArn: !GetAtt ClickstreamStream.Arn
+      FunctionName: !Ref ClickstreamProcessorFunction
+
+Outputs:
+  StreamName:
+    Value: !Ref ClickstreamStream
+  LambdaFunction:
+    Value: !Ref ClickstreamProcessorFunction
+  S3Bucket:
+    Value: !Ref ClickstreamBucket
